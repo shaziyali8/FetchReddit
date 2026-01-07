@@ -1,175 +1,222 @@
 import asyncio
+import os
+import shutil
+import itertools
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from pyrogram.errors import FloodWait
-from config import API_ID, API_HASH, SESSION_NAME
+import praw
+import yt_dlp
+from config import (
+    API_ID, API_HASH, SESSION_NAME,
+    REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME,
+    REDDIT_PASSWORD, REDDIT_USER_AGENT
+)
 
 # Initialize the Client (Userbot)
 app = Client(SESSION_NAME, api_id=API_ID, api_hash=API_HASH)
 
+# Initialize Reddit Client
+reddit = praw.Reddit(
+    client_id=REDDIT_CLIENT_ID,
+    client_secret=REDDIT_CLIENT_SECRET,
+    username=REDDIT_USERNAME,
+    password=REDDIT_PASSWORD,
+    user_agent=REDDIT_USER_AGENT
+)
+
 @app.on_message(filters.me & filters.command("start", prefixes="/"))
 async def start_handler(client, message):
-    """
-    Handles the /start command.
-    """
     await message.edit_text(
-        "**Reddit Saved Posts Fetcher**\n\n"
-        "This bot fetches media (e.g., Reddit posts) from your Telegram Saved Messages and forwards it here or to a specified channel.\n\n"
+        "**Reddit Saved Post Downloader**\n\n"
+        "This bot fetches your saved posts from Reddit and downloads/forwards the media to Telegram.\n\n"
         "**Commands:**\n"
         "`/info` - Show information.\n"
-        "`/from <id> [target]` - Fetch media starting from `id`. Optional `target` channel/chat.\n\n"
-        "Example: `/from 50` (to here) or `/from 50 @mychannel`"
+        "`/from <start_index> [limit] [target]` - Fetch saved posts starting from index.\n\n"
+        "Example: `/from 0 10` (Fetch 10 newest)\n"
+        "Example: `/from 10 5` (Skip 10 newest, fetch next 5)"
     )
 
 @app.on_message(filters.me & filters.command("info", prefixes="/"))
 async def info_handler(client, message):
-    """
-    Handles the /info command.
-    """
     await message.edit_text(
         "**Bot Information**\n\n"
-        "Library: Pyrogram (MTProto)\n"
-        "Function: Fetches Saved Messages media (Reddit posts) and forwards it.\n"
-        "Support: Large files (up to 2GB), Real-time updates.\n\n"
+        "Library: Pyrogram (MTProto) + PRAW + yt-dlp\n"
+        "Function: Downloads saved media from Reddit account.\n"
+        "Support: Images, Videos, Galleries.\n\n"
         "**Usage:**\n"
-        "Use `/from <n> [target]` to start fetching from a specific Message ID.\n"
-        "- `<n>`: Start Message ID (integer).\n"
-        "- `[target]`: (Optional) Username or ID of target channel. Defaults to current chat.\n\n"
-        "e.g., `/from 91 @MyArchiveChannel`"
+        "`/from <start_index> <count> [target]`\n"
+        "- `start_index`: 0 for newest.\n"
+        "- `count`: Number of posts to check.\n"
+        "- `target`: (Optional) Channel username/ID."
     )
 
-async def copy_message_safe(msg, target_chat_id):
+def download_media(url, output_dir="downloads"):
     """
-    Copies a message handling FloodWait.
+    Downloads media using yt-dlp. Returns list of file paths.
     """
-    while True:
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    ydl_opts = {
+        'outtmpl': f'{output_dir}/%(id)s.%(ext)s',
+        'quiet': True,
+        'no_warnings': True,
+        # 'format': 'bestvideo+bestaudio/best', # Default is usually fine
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
-            await msg.copy(target_chat_id)
-            return True
-        except FloodWait as e:
-            print(f"FloodWait hit. Sleeping for {e.value} seconds.")
-            await asyncio.sleep(e.value)
+            info = ydl.extract_info(url, download=True)
+            if 'entries' in info:
+                # Playlist or gallery
+                files = []
+                for entry in info['entries']:
+                    filename = ydl.prepare_filename(entry)
+                    files.append(filename)
+                return files
+            else:
+                filename = ydl.prepare_filename(info)
+                return [filename]
         except Exception as e:
-            print(f"Error copying message {msg.id}: {e}")
-            return False
+            print(f"yt-dlp error for {url}: {e}")
+            return []
 
 @app.on_message(filters.me & filters.command("from", prefixes="/"))
-async def fetch_handler(client, message: Message):
-    """
-    Handles the /from command to fetch messages.
-    """
-    # Parse the argument
+async def fetch_reddit_handler(client, message: Message):
     try:
         args = message.text.split()
         if len(args) < 2:
-            await message.edit_text("Usage: `/from <message_id> [target]`\nExample: `/from 50 @mychannel`")
+            await message.edit_text("Usage: `/from <start_index> [limit] [target]`\nExample: `/from 0 10`")
             return
 
-        start_id = int(args[1])
-        if start_id < 1:
-            await message.edit_text("Message ID must be positive.")
-            return
+        start_index = int(args[1])
+        limit_count = int(args[2]) if len(args) > 2 and args[2].isdigit() else 10
+
+        target_chat_id = message.chat.id
+        target_name = "This chat"
+
+        # Check for target chat argument (if 3rd arg is not a digit, or 4th arg)
+        target_arg = None
+        if len(args) > 2 and not args[2].isdigit():
+             target_arg = args[2]
+        elif len(args) > 3:
+             target_arg = args[3]
+
+        if target_arg:
+            try:
+                target_chat = await client.get_chat(target_arg)
+                target_chat_id = target_chat.id
+                target_name = target_chat.title or target_chat.username
+            except Exception as e:
+                await message.edit_text(f"Invalid Target Chat: {target_arg}\nError: {e}")
+                return
+
     except ValueError:
-        await message.edit_text("Invalid ID. Please provide an integer.")
+        await message.edit_text("Invalid arguments. Use integers for index/limit.")
         return
 
-    # Determine target chat
-    target_chat_id = message.chat.id
-    target_name = "This chat"
-
-    if len(args) > 2:
-        target_input = args[2]
-        try:
-            target_chat = await client.get_chat(target_input)
-            target_chat_id = target_chat.id
-            target_name = target_chat.title or target_chat.username or str(target_chat_id)
-        except Exception as e:
-            await message.edit_text(f"Invalid Target Chat: {target_input}\nError: {e}")
-            return
-
-    # Send status message
-    status_msg = await message.edit_text(f"Initializing fetch from ID {start_id}...\nTarget: {target_name}")
+    status_msg = await message.edit_text(f"Fetching Reddit saved posts...\nStart: {start_index}\nCount: {limit_count}\nTarget: {target_name}")
 
     try:
-        # Get the latest message ID from Saved Messages ("me") to know where to stop
-        history = []
-        async for msg in client.get_chat_history("me", limit=1):
-            history.append(msg)
+        # Fetch saved posts generator
+        # limit=None fetches all, we slice it
+        # Note: Fetching 'all' can be slow if user has thousands.
+        # But we need to iterate to reach start_index.
+        # PRAW handles pagination transparently.
+        saved_gen = reddit.user.me().saved(limit=None)
 
-        if not history:
-            await status_msg.edit_text("Saved Messages is empty.")
+        # Slice: start, stop (start + limit)
+        # itertools.islice consumes the generator
+        posts_slice = list(itertools.islice(saved_gen, start_index, start_index + limit_count))
+
+        if not posts_slice:
+            await status_msg.edit_text("No posts found in this range.")
             return
 
-        latest_id = history[0].id
+        success_count = 0
 
-        if start_id > latest_id:
-            await status_msg.edit_text(f"Start ID {start_id} is greater than the latest message ID ({latest_id}).")
-            return
-
-        await status_msg.edit_text(f"Fetching from ID {start_id} to {latest_id}...\nTarget: {target_name}")
-
-        processed_ids = 0
-        media_count = 0
-        batch_size = 100 # Fetch in batches of 100 for efficiency
-
-        # Iterate from start_id to latest_id
-        for i in range(start_id, latest_id + 1, batch_size):
-            # Calculate batch range
-            end_batch = min(i + batch_size, latest_id + 1)
-            batch_ids = list(range(i, end_batch))
-
-            # Fetch messages by IDs with FloodWait handling
-            messages = None
-            while messages is None:
+        for i, post in enumerate(posts_slice):
+            current_idx = start_index + i
+            # Update status every 5 posts or so
+            if i % 5 == 0:
                 try:
-                    messages = await client.get_messages("me", batch_ids)
+                    await status_msg.edit_text(
+                        f"Processing post {i+1}/{len(posts_slice)} (Index {current_idx})\n"
+                        f"Success: {success_count}"
+                    )
                 except FloodWait as e:
                     await asyncio.sleep(e.value)
+                except Exception:
+                    pass
+
+            # Skip self posts (text only) unless they have media embedded (rarely reliable to check)
+            # Generally 'is_self' means text post.
+            if getattr(post, 'is_self', False):
+                continue
+
+            # Determine URL
+            url = getattr(post, 'url', None)
+            if not url:
+                continue
+
+            # Download
+            files = await asyncio.to_thread(download_media, url)
+
+            if not files:
+                # Fallback: Send link if download fails? Or just skip.
+                # await client.send_message(target_chat_id, f"Failed to download: {url}")
+                continue
+
+            # Upload
+            caption = f"{post.title}\n\nVia /u/{post.author} in /r/{post.subreddit}"
+            for file_path in files:
+                try:
+                    if not os.path.exists(file_path):
+                        continue
+
+                    # Determine type
+                    ext = os.path.splitext(file_path)[1].lower()
+                    if ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                        await client.send_photo(target_chat_id, photo=file_path, caption=caption)
+                    elif ext in ['.mp4', '.mkv', '.webm', '.gif']:
+                         await client.send_video(target_chat_id, video=file_path, caption=caption)
+                    else:
+                        await client.send_document(target_chat_id, document=file_path, caption=caption)
+
+                    success_count += 1
+
+                    # Cleanup
+                    os.remove(file_path)
+
+                    # Sleep slightly to respect Telegram limits
+                    await asyncio.sleep(1)
+
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+                    # Retry once?
+                    try:
+                        await client.send_document(target_chat_id, document=file_path, caption=caption)
+                        success_count += 1
+                        os.remove(file_path)
+                    except:
+                        pass
                 except Exception as e:
-                    await status_msg.edit_text(f"Error fetching messages: {e}")
-                    return
-
-            # Allow for single message return if batch is 1
-            if not isinstance(messages, list):
-                messages = [messages]
-
-            for msg in messages:
-                # msg can be None or empty if the ID doesn't exist (deleted message)
-                if not msg or msg.empty:
-                    continue
-
-                # Check if message has media
-                # We check for various media types. msg.media is truthy if any media is present.
-                if msg.media:
-                    success = await copy_message_safe(msg, target_chat_id)
-                    if success:
-                        media_count += 1
-
-            # Update progress
-            current_progress = min(end_batch, latest_id)
-            try:
-                await status_msg.edit_text(
-                    f"**Fetching...**\n"
-                    f"Range: {start_id} - {latest_id}\n"
-                    f"Current: {current_progress}\n"
-                    f"Media Forwarded: {media_count}"
-                )
-            except FloodWait as e:
-                # If we get floodwaited on edit, just wait and skip this update
-                await asyncio.sleep(e.value)
-            except Exception:
-                # Ignore other edit errors (e.g., "Message not modified")
-                pass
+                    print(f"Upload error: {e}")
 
         await status_msg.edit_text(
             f"**Fetch Complete!**\n"
-            f"Range Scanned: {start_id} - {latest_id}\n"
-            f"Total Media Forwarded: {media_count}"
+            f"Processed: {len(posts_slice)}\n"
+            f"Uploaded: {success_count}"
         )
+
+        # Cleanup download dir if empty
+        if os.path.exists("downloads") and not os.listdir("downloads"):
+             os.rmdir("downloads")
 
     except Exception as e:
         await status_msg.edit_text(f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
-    print("Starting Userbot...")
+    print("Starting Reddit Userbot...")
     app.run()

@@ -1,62 +1,70 @@
-# Telegram Saved Messages Media Fetcher
+# Reddit Saved Media Downloader Bot
 
-This is a **Telegram Userbot** designed to manage and organize media you have saved in your **Saved Messages**.
-
-It is particularly useful if you save posts (e.g., Reddit videos/images forwarded from other bots/channels) to your Saved Messages and want to bulk-forward them to a specific archive channel.
+This is a **Telegram Userbot** that connects to your **Reddit Account**, fetches your Saved Posts, downloads the media (images/videos), and uploads them to a Telegram Chat/Channel.
 
 ## Features
 
-- **Fetch from specific ID**: Resume forwarding from where you left off (e.g., `/from 50`).
-- **Target Channel**: Forward media to a specific channel (e.g., `/from 50 @MyArchive`).
-- **Large File Support**: Uses Pyrogram (MTProto) to handle files up to 2GB efficiently.
-- **No Reddit Login Required**: This bot operates entirely within Telegram.
+- **Fetch from Reddit**: Access your saved posts directly via Reddit API.
+- **Sequential Fetching**: Use `/from <index> <count>` to process batches (e.g., fetch 10 posts starting from the 50th newest).
+- **Media Support**: Uses `yt-dlp` to download Videos (Reddit, RedGifs, etc.) and Images.
+- **Large File Support**: Uses Pyrogram for uploads (up to 2GB).
 
-## FAQ
+## Setup
 
-### 1. Where do I add my Reddit account details?
-**You don't.**
-This bot does **not** connect to Reddit. It works on the assumption that you have *already* forwarded Reddit posts (or any media) into your **Telegram Saved Messages** (the "Saved Messages" chat with yourself).
-- **Source**: Your Telegram "Saved Messages".
-- **Destination**: The chat where you run the command (or the specified target channel).
+### 1. Requirements
 
-### 2. Why is there no Bot Token?
-Standard Telegram Bots (created via BotFather) **cannot access your personal Saved Messages**.
-To read your history, this script acts as a **Userbot**. It logs in as *you* (using your account credentials).
-- **Required**: `API_ID` and `API_HASH` (from [my.telegram.org](https://my.telegram.org/)).
-- **Not Required**: Bot Token.
+- Python 3.8+
+- A Reddit Account
+- A Telegram Account
 
-### 3. What is `SESSION_NAME`?
-This is simply the name of the file where Pyrogram saves your login session (e.g., `my_account.session`).
-- When you run the script for the first time, it will ask for your **Phone Number** and **Login Code** (OTP).
-- It saves this login data into `my_account.session`.
-- Future runs will use this file to log in automatically without asking for code again.
+### 2. Get Credentials
 
-## Setup & Usage
+#### Telegram API
+1.  Go to [my.telegram.org](https://my.telegram.org/).
+2.  Log in and go to **API Development Tools**.
+3.  Copy `API_ID` and `API_HASH`.
 
-1.  **Install Dependencies**:
+#### Reddit API
+1.  Go to [https://www.reddit.com/prefs/apps](https://www.reddit.com/prefs/apps).
+2.  Click **Create Another App** (at the bottom).
+3.  Select **script**.
+4.  Name: `MyTelegramBot` (or anything).
+5.  Redirect URI: `http://localhost:8080` (doesn't matter for script apps).
+6.  Click **Create app**.
+7.  Copy the **Client ID** (under the name) and **Client Secret**.
+
+### 3. Installation
+
+1.  Clone this repo.
+2.  Install dependencies:
     ```bash
     pip install -r requirements.txt
     ```
 
-2.  **Configure**:
-    - Open `config.py`.
-    - Enter your `API_ID` and `API_HASH` (get them from [https://my.telegram.org/](https://my.telegram.org/) -> API Development Tools).
+3.  Configure `config.py`:
+    - Edit `config.py` and fill in your Telegram and Reddit credentials.
 
-3.  **Run**:
+### 4. Usage
+
+1.  Run the bot:
     ```bash
     python3 bot.py
     ```
-    *Follow the on-screen prompts to log in.*
+2.  Log in to Telegram (enter phone number and OTP when prompted).
 
-4.  **Commands (in Telegram)**:
-    Send these commands to your **Saved Messages** (or any chat where you are running the bot):
+3.  **Commands**:
+    Send these commands to your **Saved Messages** (or the chat where the bot is running):
 
-    - **Check Info**:
-      `/info`
+    - **Fetch Newest 10 Saved Posts**:
+      `/from 0 10`
 
-    - **Start Fetching**:
-      `/from <message_id> [target_channel]`
+    - **Fetch Posts #50 to #60**:
+      `/from 50 10`
 
-      *Examples:*
-      - `/from 100` -> Fetches media from Message ID 100 up to the latest, forwarding to the current chat.
-      - `/from 100 @MyRedditArchive` -> Fetches from ID 100 and forwards to the channel `@MyRedditArchive`.
+    - **Fetch and Send to Channel**:
+      `/from 0 5 @MyArchiveChannel`
+
+## Notes
+- The "Index" is 0-based. 0 is the most recently saved post.
+- Text posts are skipped.
+- Some complex galleries or external links might fail to download if `yt-dlp` doesn't support them.
