@@ -1,3 +1,5 @@
-python-telegram-bot>=20.0
+pyrogram
+tgcrypto
 praw
 python-dotenv
+yt-dlp

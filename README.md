@@ -1,41 +1,41 @@
-# Reddit Saved Posts Telegram Bot
+# Reddit Saved Posts Telegram Bot (Pyrogram Edition)
 
-A Python Telegram Bot (v20+) that posts your saved Reddit posts to a Telegram Channel.
+A Telegram Bot that fetches your saved Reddit posts and forwards them to a Telegram Channel using **Pyrogram**.
+This version supports uploading **large files (up to 2GB)** by downloading them locally first using `yt-dlp`.
 
 ## Features
-- Fetches saved posts via PRAW (OAuth).
-- Supports `/post from=X to=Y` command (max 20 items).
-- Handles text, images, videos, and links.
-- Fallback to Reddit link if media upload fails (e.g., >50MB).
-- Skips deleted posts.
-- Respects rate limits (sleeps between posts).
+- **Pyrogram (MTProto)**: Supports 2GB file uploads.
+- **Media Support**: Uses `yt-dlp` to download high-quality videos/images from Reddit, RedGifs, etc.
+- **PRAW Integration**: Fetches your private "Saved" posts.
+- **Commands**: `/post from=X to=Y` to control batching.
 
 ## Requirements
-- Python 3.10+
+- Python 3.8+
+- `ffmpeg` (Required for yt-dlp video merging)
 - A Reddit Account (Client ID/Secret)
-- A Telegram Bot (Token)
-- A Telegram Channel (ID)
+- A Telegram Bot (Token, API ID, Hash)
 
 ## Setup
 
-1.  **Clone/Download** this repository.
-
-2.  **Install Dependencies**:
+1.  **Install Dependencies**:
     ```bash
     pip install -r requirements.txt
     ```
 
-3.  **Environment Variables**:
+2.  **Environment Variables**:
     - Copy `.env.example` to `.env`:
       ```bash
       cp .env.example .env
       ```
-    - Edit `.env` and fill in your details:
-        - `TELEGRAM_BOT_TOKEN`: From @BotFather.
+    - **Telegram**:
+        - `API_ID` & `API_HASH`: From [my.telegram.org](https://my.telegram.org).
+        - `BOT_TOKEN`: From @BotFather.
+        - `OWNER_ID`: Your numeric User ID (from @userinfobot).
         - `TELEGRAM_CHANNEL_ID`: Channel ID (e.g. `@my_channel` or `-100...`). **Add the bot as Admin**.
-        - `REDDIT_...`: From https://www.reddit.com/prefs/apps (Create a "script" app).
+    - **Reddit**:
+        - Credentials from [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps).
 
-4.  **Run**:
+3.  **Run**:
     ```bash
     python bot.py
     ```
@@ -44,11 +44,10 @@ A Python Telegram Bot (v20+) that posts your saved Reddit posts to a Telegram Ch
 
 Send commands to the bot (in private chat):
 
-- `/start`: Check if bot is alive.
-- `/info`: Check Reddit connection status.
-- `/post from=0 to=10`: Fetch the 10 most recent saved posts and send them to the channel.
-- `/post from=10 to=20`: Fetch the next 10.
+- `/info`: Check status.
+- `/post from=0 to=10`: Fetch 10 most recent saved posts.
+- `/post from=50 to=55`: Fetch posts #50 to #55.
 
 ## Notes
-- Reddit videos often have separate audio streams. This bot attempts to send the fallback URL provided by Reddit. If audio is missing or it fails, it sends the link.
-- Large files (>50MB) are rejected by Telegram Bot API; the bot will link to them instead.
+- Ensure `ffmpeg` is installed on your system (`apt install ffmpeg` or `brew install ffmpeg`), or `yt-dlp` may fail to merge video+audio streams for Reddit videos.
+- Downloaded files are temporarily stored in `downloads/` and deleted after upload.
