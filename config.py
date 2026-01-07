@@ -10,5 +10,7 @@ API_ID = os.getenv("API_ID", "YOUR_API_ID_HERE")
 API_HASH = os.getenv("API_HASH", "YOUR_API_HASH_HERE")
 
 # The session name for the Pyrogram client.
-# This will create a file named 'my_account.session'.
+# This will create a file named 'my_account.session' (or whatever value you set here)
+# in the current directory. This file stores your login session (auth token), so you
+# only need to log in once (via phone number + OTP).
 SESSION_NAME = os.getenv("SESSION_NAME", "my_account")
