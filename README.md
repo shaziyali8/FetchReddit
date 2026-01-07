@@ -1,37 +1,39 @@
-# Reddit Saved Media Downloader Bot
+# Reddit Saved Media Downloader (Telegram Bot)
 
-This is a **Telegram Userbot** that connects to your **Reddit Account**, fetches your Saved Posts, downloads the media (images/videos), and uploads them to a Telegram Chat/Channel.
+This is a **Telegram Bot** (configured to run on your server/computer) that automates downloading your **Reddit Saved Posts** and uploading them to a Telegram Channel or Chat.
+
+It uses **Pyrogram** (MTProto) to support uploading files up to **2GB**, surpassing the standard Bot API limit of 50MB.
 
 ## Features
 
-- **Fetch from Reddit**: Access your saved posts directly via Reddit API.
-- **Sequential Fetching**: Use `/from <index> <count>` to process batches (e.g., fetch 10 posts starting from the 50th newest).
-- **Media Support**: Uses `yt-dlp` to download Videos (Reddit, RedGifs, etc.) and Images.
-- **Large File Support**: Uses Pyrogram for uploads (up to 2GB).
+- **Personal Bot**: Restricted to your Telegram User ID.
+- **Fetch Saved Posts**: Connects to your Reddit account via PRAW.
+- **Media Downloader**: Uses `yt-dlp` to download Videos (Reddit, RedGifs, etc.) and Images.
+- **Large File Support**: Uploads large videos directly to Telegram.
+- **Channel Support**: Send media directly to an Archive Channel.
 
 ## Setup
 
 ### 1. Requirements
 
 - Python 3.8+
+- **ffmpeg** (Required for `yt-dlp` to merge video/audio).
+    - Ubuntu: `sudo apt install ffmpeg`
+    - Mac: `brew install ffmpeg`
 - A Reddit Account
-- A Telegram Account
+- A Telegram Account (to create the bot and control it)
 
 ### 2. Get Credentials
 
-#### Telegram API
-1.  Go to [my.telegram.org](https://my.telegram.org/).
-2.  Log in and go to **API Development Tools**.
-3.  Copy `API_ID` and `API_HASH`.
+#### Telegram Bot & API
+1.  **Bot Token**: Message [@BotFather](https://t.me/BotFather) on Telegram, create a new bot, and copy the **HTTP API Token**.
+2.  **API ID & Hash**: Go to [my.telegram.org](https://my.telegram.org/), log in, and copy `API_ID` and `API_HASH` from "API Development Tools".
+3.  **Owner ID**: Message [@userinfobot](https://t.me/userinfobot) on Telegram and copy your **ID** (Integer).
 
 #### Reddit API
 1.  Go to [https://www.reddit.com/prefs/apps](https://www.reddit.com/prefs/apps).
-2.  Click **Create Another App** (at the bottom).
-3.  Select **script**.
-4.  Name: `MyTelegramBot` (or anything).
-5.  Redirect URI: `http://localhost:8080` (doesn't matter for script apps).
-6.  Click **Create app**.
-7.  Copy the **Client ID** (under the name) and **Client Secret**.
+2.  Create a **script** app.
+3.  Copy the **Client ID** and **Client Secret**.
 
 ### 3. Installation
 
@@ -42,7 +44,7 @@ This is a **Telegram Userbot** that connects to your **Reddit Account**, fetches
     ```
 
 3.  Configure `config.py`:
-    - Edit `config.py` and fill in your Telegram and Reddit credentials.
+    - Edit `config.py` and fill in all the variables (Bot Token, Owner ID, Reddit Creds, etc.).
 
 ### 4. Usage
 
@@ -50,21 +52,19 @@ This is a **Telegram Userbot** that connects to your **Reddit Account**, fetches
     ```bash
     python3 bot.py
     ```
-2.  Log in to Telegram (enter phone number and OTP when prompted).
 
-3.  **Commands**:
-    Send these commands to your **Saved Messages** (or the chat where the bot is running):
+2.  **Start the Bot**:
+    - Open your bot in Telegram and send `/start`.
+    - It should greet you. If it says "Unauthorized", check your `OWNER_ID` in config.
 
-    - **Fetch Newest 10 Saved Posts**:
-      `/from 0 10`
+3.  **Forward to Channel**:
+    - **Important**: Add your Bot as an **Administrator** in the target channel so it can post messages.
+    - Command: `/from <start_index> <count> @MyArchiveChannel`
 
-    - **Fetch Posts #50 to #60**:
-      `/from 50 10`
-
-    - **Fetch and Send to Channel**:
-      `/from 0 5 @MyArchiveChannel`
+    **Examples**:
+    - `/from 0 10 @MyRedditArchive` (Fetch 10 newest saved posts and send to channel)
+    - `/from 50 5` (Fetch 5 posts starting from index 50 and send to the current chat)
 
 ## Notes
-- The "Index" is 0-based. 0 is the most recently saved post.
-- Text posts are skipped.
-- Some complex galleries or external links might fail to download if `yt-dlp` doesn't support them.
+- The bot deletes downloaded files from your server after uploading to save space.
+- The `SESSION_NAME` in `config.py` is for the bot's internal session file.

@@ -1,19 +1,22 @@
 import os
 
-# You can either set these environment variables or edit the string values directly below.
-# API_ID and API_HASH can be obtained from https://my.telegram.org/
-#
-# NOTE: This script runs as a "Userbot" (using your personal account) to access your
-# "Saved Messages" history. Standard Bot API tokens (from BotFather) CANNOT access
-# a user's Saved Messages. Therefore, NO BOT_TOKEN is required/used here.
+# Telegram Bot Configuration
+# Get API_ID and API_HASH from https://my.telegram.org/
+# These are required for Pyrogram (MTProto) to work.
 API_ID = os.getenv("API_ID", "YOUR_API_ID_HERE")
 API_HASH = os.getenv("API_HASH", "YOUR_API_HASH_HERE")
 
-# The session name for the Pyrogram client.
-# This will create a file named 'my_account.session' (or whatever value you set here)
-# in the current directory. This file stores your login session (auth token), so you
-# only need to log in once (via phone number + OTP).
-SESSION_NAME = os.getenv("SESSION_NAME", "my_account")
+# Get BOT_TOKEN from @BotFather
+# This script runs as a Standard Telegram Bot.
+BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+
+# Your Telegram User ID (Integer).
+# Only this user can control the bot.
+# You can get this from @userinfobot
+OWNER_ID = int(os.getenv("OWNER_ID", "0"))
+
+# Session name (internal use for Pyrogram)
+SESSION_NAME = os.getenv("SESSION_NAME", "my_bot_session")
 
 # Reddit API Configuration
 # Get these from https://www.reddit.com/prefs/apps
