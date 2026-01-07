@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Reddit Saved to Telegram",
+  "version": "1.0",
+  "description": "Fetch Reddit saved posts and send them to Telegram.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.reddit.com/*",
+    "https://api.telegram.org/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.reddit.com/user/*/saved*", "*://*.reddit.com/saved*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ]
+}

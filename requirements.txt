@@ -1,5 +1,0 @@
-pyrogram
-tgcrypto
-praw
-python-dotenv
-yt-dlp

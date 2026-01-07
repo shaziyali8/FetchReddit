@@ -1,53 +1,45 @@
-# Reddit Saved Posts Telegram Bot (Pyrogram Edition)
+# Reddit Saved Posts to Telegram Extension
 
-A Telegram Bot that fetches your saved Reddit posts and forwards them to a Telegram Channel using **Pyrogram**.
-This version supports uploading **large files (up to 2GB)** by downloading them locally first using `yt-dlp`.
+This is a Chrome Extension that runs on your Reddit "Saved" page. It extracts post URLs and sends them to your Telegram bot.
 
 ## Features
-- **Pyrogram (MTProto)**: Supports 2GB file uploads.
-- **Media Support**: Uses `yt-dlp` to download high-quality videos/images from Reddit, RedGifs, etc.
-- **PRAW Integration**: Fetches your private "Saved" posts.
-- **Commands**: `/post from=X to=Y` to control batching.
+- **In-Page Panel**: No need to click the extension icon. A small panel appears on the bottom right of Reddit pages.
+- **Duplicate Prevention**: Remembers which posts (IDs) have already been sent to avoid spam.
+- **Batch Sending**: Sends multiple URLs in a single message to respect rate limits.
+- **Privacy**: Runs entirely in your browser. Tokens are stored in your browser's local storage.
 
-## Requirements
-- Python 3.8+
-- `ffmpeg` (Required for yt-dlp video merging)
-- A Reddit Account (Client ID/Secret)
-- A Telegram Bot (Token, API ID, Hash)
+## Installation
 
-## Setup
+1.  **Download the Extension**:
+    - Clone or download this repository.
+    - Ensure you have the folder `reddit-saved-extension` containing `manifest.json`.
 
-1.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+2.  **Load in Chrome**:
+    - Open Chrome and go to `chrome://extensions/`.
+    - Enable **Developer mode** (top right).
+    - Click **Load unpacked**.
+    - Select the `reddit-saved-extension` folder.
 
-2.  **Environment Variables**:
-    - Copy `.env.example` to `.env`:
-      ```bash
-      cp .env.example .env
-      ```
-    - **Telegram**:
-        - `API_ID` & `API_HASH`: From [my.telegram.org](https://my.telegram.org).
-        - `BOT_TOKEN`: From @BotFather.
-        - `OWNER_ID`: Your numeric User ID (from @userinfobot).
-        - `TELEGRAM_CHANNEL_ID`: Channel ID (e.g. `@my_channel` or `-100...`). **Add the bot as Admin**.
-    - **Reddit**:
-        - Credentials from [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps).
+## Configuration
 
-3.  **Run**:
-    ```bash
-    python bot.py
-    ```
+1.  **Get Telegram Credentials**:
+    - **Bot Token**: Chat with [@BotFather](https://t.me/BotFather) on Telegram to create a new bot and get the HTTP API Token.
+    - **Chat ID**: Chat with [@userinfobot](https://t.me/userinfobot) to get your numeric User ID.
+
+2.  **Configure the Extension**:
+    - Go to your Reddit Saved page: [https://www.reddit.com/user/YOUR_USERNAME/saved/](https://www.reddit.com/user/me/saved/).
+    - You should see a panel in the bottom right corner.
+    - Click **Settings**.
+    - Enter your **Bot Token** and **Chat ID**.
+    - Click **Save**.
 
 ## Usage
 
-Send commands to the bot (in private chat):
-
-- `/info`: Check status.
-- `/post from=0 to=10`: Fetch 10 most recent saved posts.
-- `/post from=50 to=55`: Fetch posts #50 to #55.
+1.  **Scroll**: Scroll down on your Reddit Saved page to load as many posts as you want to process. (The extension only sees what is loaded in the DOM).
+2.  **Fetch**: Click **Fetch URLs** on the panel. It will tell you how many *new* posts it found.
+3.  **Send**: Click **Send to Telegram**.
+4.  Check your Telegram!
 
 ## Notes
-- Ensure `ffmpeg` is installed on your system (`apt install ffmpeg` or `brew install ffmpeg`), or `yt-dlp` may fail to merge video+audio streams for Reddit videos.
-- Downloaded files are temporarily stored in `downloads/` and deleted after upload.
+- Works on both Old Reddit and New Reddit (as long as the URL structure contains `/comments/id/`).
+- If you clear your browser extension data, the "already sent" history will be lost.
