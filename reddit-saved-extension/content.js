@@ -29,8 +29,25 @@ function attemptInjection() {
 }
 
 function createPanel() {
+    console.log('Reddit Saved Extension: creating panel');
     const panel = document.createElement('div');
     panel.id = 'rst-panel';
+
+    // Inline styles to ensure visibility (overrides site CSS)
+    panel.style.position = 'fixed';
+    panel.style.bottom = '20px';
+    panel.style.right = '20px';
+    panel.style.width = '300px';
+    panel.style.background = '#ffffff';
+    panel.style.border = '1px solid #ccc';
+    panel.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+    panel.style.borderRadius = '8px';
+    panel.style.padding = '15px';
+    panel.style.zIndex = '2147483647';
+    panel.style.fontFamily = 'sans-serif';
+    panel.style.color = '#333';
+    panel.style.pointerEvents = 'auto';
+
     panel.innerHTML = `
         <h3>Reddit -> Telegram</h3>
 
@@ -48,14 +65,24 @@ function createPanel() {
             <button id="rst-cancel-btn" class="rst-btn rst-secondary">Back</button>
         </div>
     `;
+
     document.body.appendChild(panel);
 
+    // Small sanity checks and logs
+    console.log('Reddit Saved Extension: panel appended', !!document.getElementById('rst-panel'));
+
     // Event Listeners
-    document.getElementById('rst-fetch-btn').addEventListener('click', fetchUrls);
-    document.getElementById('rst-send-btn').addEventListener('click', sendToTelegram);
-    document.getElementById('rst-settings-btn').addEventListener('click', showSettings);
-    document.getElementById('rst-save-btn').addEventListener('click', saveConfig);
-    document.getElementById('rst-cancel-btn').addEventListener('click', hideSettings);
+    const fetchBtn = document.getElementById('rst-fetch-btn');
+    const sendBtn = document.getElementById('rst-send-btn');
+    const settingsBtn = document.getElementById('rst-settings-btn');
+    const saveBtn = document.getElementById('rst-save-btn');
+    const cancelBtn = document.getElementById('rst-cancel-btn');
+
+    if (fetchBtn) fetchBtn.addEventListener('click', fetchUrls);
+    if (sendBtn) sendBtn.addEventListener('click', sendToTelegram);
+    if (settingsBtn) settingsBtn.addEventListener('click', showSettings);
+    if (saveBtn) saveBtn.addEventListener('click', saveConfig);
+    if (cancelBtn) cancelBtn.addEventListener('click', hideSettings);
 }
 
 // --- Configuration Logic ---
