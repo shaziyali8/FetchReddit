@@ -43,3 +43,33 @@ This is a Chrome Extension that runs on your Reddit "Saved" page. It extracts po
 ## Notes
 - Works on both Old Reddit and New Reddit (as long as the URL structure contains `/comments/id/`).
 - If you clear your browser extension data, the "already sent" history will be lost.
+
+---
+
+# Part 2: Media Downloader Bot (Python)
+
+To automatically download the videos/images from the links sent by the extension, run this Python script.
+
+## Setup
+
+1.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+    *Note: You also need `ffmpeg` installed on your system for `yt-dlp`.*
+
+2.  **Configuration**:
+    - Copy `.env.example` to `.env`:
+      ```bash
+      cp .env.example .env
+      ```
+    - Fill in:
+      - `API_ID`, `API_HASH` (from my.telegram.org)
+      - `BOT_TOKEN` (Same as used in Extension)
+      - `TELEGRAM_CHANNEL_ID` (Same as used in Extension)
+
+3.  **Run**:
+    ```bash
+    python media_bot.py
+    ```
+    The bot will poll the channel every 15 seconds. When it sees a message from the Extension ("New Saved Posts:"), it will download the media and upload it to the channel, then mark the text message as "✅ Processed".

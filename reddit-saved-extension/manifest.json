@@ -16,11 +16,12 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.reddit.com/*"
+        "*://*.reddit.com/user/*/saved*",
+        "*://*.reddit.com/saved*",
+        "*://*.reddit.com/u/*/saved*"
       ],
       "js": ["content.js"],
-      "css": ["styles.css"],
-      "run_at": "document_idle"
+      "css": ["styles.css"]
     }
   ]
 }
