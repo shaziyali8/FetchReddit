@@ -9,7 +9,7 @@ let config = {
 // --- Initialization ---
 
 function init() {
-    console.log("Reddit Saved Extension: Content script loaded");
+    console.log("Reddit Saved Extension: Content script loaded...");
 
     // Check initially
     attemptInjection();
