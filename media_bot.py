@@ -3,9 +3,9 @@ import re
 import asyncio
 import logging
 import shutil
+import time
 from dotenv import load_dotenv
-from telethon import TelegramClient
-from telethon.tl.types import Message
+from pyrogram import Client, enums
 import yt_dlp
 
 # Load environment variables
@@ -16,21 +16,34 @@ API_ID = os.getenv('API_ID')
 API_HASH = os.getenv('API_HASH')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 CHANNEL_ID = os.getenv('TELEGRAM_CHANNEL_ID')
-SESSION_FILE = 'session'
 
 # Ensure configuration exists
 if not all([API_ID, API_HASH, BOT_TOKEN, CHANNEL_ID]):
     print("Error: Missing configuration in .env file.")
     exit(1)
 
-API_ID = int(API_ID)
-
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Initialize Telegram Client
-client = TelegramClient(SESSION_FILE, API_ID, API_HASH)
+# Initialize Pyrogram Client
+# Using a session file named 'media_bot_session'
+app = Client(
+    "media_bot_session",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
+)
+
+def get_channel_id(channel_id_str):
+    """
+    Resolves the channel ID.
+    Pyrogram handles strings (@channel) and integers (-100...) natively,
+    but we ensure integers are cast correctly.
+    """
+    if channel_id_str.lstrip('-').isdigit():
+        return int(channel_id_str)
+    return channel_id_str
 
 async def download_media(url):
     """Downloads media from the given URL using yt-dlp."""
@@ -38,6 +51,7 @@ async def download_media(url):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # Use a specific template to control filenames
     output_template = os.path.join(output_dir, '%(id)s.%(ext)s')
 
     ydl_opts = {
@@ -45,137 +59,119 @@ async def download_media(url):
         'quiet': True,
         'no_warnings': True,
         'max_filesize': 2000 * 1024 * 1024, # 2GB
-        # 'noplaylist': True, # Default behavior usually fine
+        # 'noplaylist': True, # Default behavior
     }
-
-    downloaded_files = []
 
     try:
         logger.info(f"Downloading: {url}")
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            if 'entries' in info:
-                # It's a playlist or gallery
-                for entry in info['entries']:
-                    if entry:
-                        filename = ydl.prepare_filename(entry)
-                        downloaded_files.append(filename)
-            else:
-                filename = ydl.prepare_filename(info)
-                downloaded_files.append(filename)
+        # Run yt-dlp in a separate thread to avoid blocking the async loop
+        def run_yt_dlp():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                return info
 
-        # Verify files exist (yt-dlp might change extension)
-        final_files = []
-        for f in downloaded_files:
-             # Sometimes prepare_filename result doesn't match exactly if yt-dlp merges formats
-             # But usually it is correct. If not, we might need to scan the dir.
-             # However, let's assume it works or we scan the dir for created files.
-             if os.path.exists(f):
-                 final_files.append(f)
-             else:
-                 # Fallback: check directory for similar files?
-                 # For now, let's just list the dir if the specific file isn't found?
-                 # Actually, commonly yt-dlp merges video+audio into .mkv or .mp4
-                 # prepare_filename might return .mp4 but it wrote .mkv if configured so.
-                 # Let's simple scan the directory for files modified recently?
-                 # Or just list all files in downloads since we clean it up.
-                 pass
+        loop = asyncio.get_event_loop()
+        # Using executor for blocking call
+        await loop.run_in_executor(None, run_yt_dlp)
 
-        # Simpler approach: return all files in downloads folder since we clean it up after every message
+        # Return list of files in output_dir
+        # Since we clean up, any file here is new
         return [os.path.join(output_dir, f) for f in os.listdir(output_dir)]
 
     except Exception as e:
         logger.error(f"Download error for {url}: {e}")
         return []
 
-async def main():
-    logger.info("Starting Telegram Bot...")
+async def process_messages():
+    """Poller to process messages."""
 
-    # Start the client
-    # If BOT_TOKEN is provided, we can use it to log in as a bot.
-    await client.start(bot_token=BOT_TOKEN)
+    channel_target = get_channel_id(CHANNEL_ID)
+    logger.info(f"Monitoring channel: {CHANNEL_ID}")
 
-    logger.info("Bot connected.")
+    async with app:
+        while True:
+            try:
+                # Fetch history (last 10 messages)
+                # Pyrogram's get_chat_history is async generator
+                history = app.get_chat_history(channel_target, limit=10)
 
-    # Resolve Channel ID
-    try:
-        if CHANNEL_ID.lstrip('-').isdigit():
-            entity = await client.get_entity(int(CHANNEL_ID))
-        else:
-            entity = await client.get_entity(CHANNEL_ID)
-        logger.info(f"Monitoring {getattr(entity, 'title', entity.id)}...")
-    except Exception as e:
-        logger.error(f"Could not find channel: {e}")
-        return
-
-    while True:
-        try:
-            # Get last 10 messages
-            # Note: iter_messages is asynchronous generator
-            messages = await client.get_messages(entity, limit=10)
-
-            for message in messages:
-                if not message.text:
-                    continue
-
-                # Check criteria: "New Saved Posts" and not "✅"
-                if "New Saved Posts:" in message.text and "✅" not in message.text:
-                    logger.info(f"Processing message {message.id}...")
-
-                    # Extract URLs
-                    # Regex to match URLs
-                    url_regex = r"(https?://(?:www\.)?(?:reddit\.com|redd\.it)/[^\s]+)"
-                    urls = re.findall(url_regex, message.text)
-
-                    if not urls:
+                async for message in history:
+                    if not message.text:
                         continue
 
-                    files_to_upload = []
+                    # Check criteria: "New Saved Posts:" and not "✅"
+                    if "New Saved Posts:" in message.text and "✅" not in message.text:
+                        logger.info(f"Processing message {message.id}...")
 
-                    for url in urls:
-                        files = await download_media(url)
-                        files_to_upload.extend(files)
+                        # Extract URLs
+                        url_regex = r"(https?://(?:www\.)?(?:reddit\.com|redd\.it)/[^\s]+)"
+                        urls = re.findall(url_regex, message.text)
 
-                    # Upload
-                    uploaded_count = 0
-                    for file_path in files_to_upload:
-                        if os.path.exists(file_path):
-                            logger.info(f"Uploading {file_path}...")
-                            try:
-                                await client.send_file(entity, file_path)
-                                os.remove(file_path) # Delete after upload
-                                uploaded_count += 1
-                            except Exception as err:
-                                logger.error(f"Upload failed for {file_path}: {err}")
+                        if not urls:
+                            continue
 
-                    # Mark as processed
-                    if uploaded_count > 0 or not files_to_upload:
-                        # Even if download failed, maybe we should mark it?
-                        # The original JS marked it if "urls" were found.
+                        files_to_upload = []
+
+                        for url in urls:
+                            files = await download_media(url)
+                            files_to_upload.extend(files)
+
+                        # Upload
+                        uploaded_count = 0
+                        for file_path in files_to_upload:
+                            if os.path.exists(file_path):
+                                logger.info(f"Uploading {file_path}...")
+                                try:
+                                    # Pyrogram supports uploading files directly
+                                    # We try to determine type, or just send_document/video
+                                    # Reddit media is usually video or image.
+                                    # send_document is safest for "file", send_video/photo for stream.
+                                    # User mentioned "stream it". send_video/send_photo renders it in stream.
+                                    ext = os.path.splitext(file_path)[1].lower()
+                                    if ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                                        await app.send_photo(channel_target, file_path)
+                                    elif ext in ['.mp4', '.mkv', '.webm', '.gif']:
+                                        await app.send_video(channel_target, file_path)
+                                    else:
+                                        await app.send_document(channel_target, file_path)
+
+                                    uploaded_count += 1
+                                except Exception as err:
+                                    logger.error(f"Upload failed for {file_path}: {err}")
+                                finally:
+                                    # Delete immediately after upload attempt
+                                    if os.path.exists(file_path):
+                                        os.remove(file_path)
+
+                        # Mark as processed
                         # We append to the message.
                         new_text = message.text + "\n\n✅ Processed & Downloaded"
                         try:
-                            await client.edit_message(entity, message.id, text=new_text, link_preview=False)
+                            await app.edit_message_text(channel_target, message.id, new_text, disable_web_page_preview=True)
                             logger.info("Message marked as processed.")
                         except Exception as err:
                             logger.error(f"Failed to edit message: {err}")
 
-                    # Cleanup downloads dir
-                    output_dir = 'downloads'
-                    if os.path.exists(output_dir):
-                        # Remove any remaining files
-                        for f in os.listdir(output_dir):
-                            os.remove(os.path.join(output_dir, f))
-                        os.rmdir(output_dir)
+                        # Final Cleanup of downloads dir (if any leftovers)
+                        output_dir = 'downloads'
+                        if os.path.exists(output_dir):
+                            for f in os.listdir(output_dir):
+                                p = os.path.join(output_dir, f)
+                                if os.path.exists(p):
+                                    os.remove(p)
+                            os.rmdir(output_dir)
 
-        except Exception as e:
-            logger.error(f"Error in loop: {e}")
+            except Exception as e:
+                logger.error(f"Error in loop: {e}")
+                # Wait a bit before retrying if error
+                await asyncio.sleep(5)
 
-        # Sleep 15s
-        await asyncio.sleep(15)
+            # Sleep 15s before next poll
+            await asyncio.sleep(15)
 
 if __name__ == '__main__':
-    # Telethon's client.run_until_disconnected() is usually for event loops.
-    # But here we have a custom loop.
-    with client:
-        client.loop.run_until_complete(main())
+    # Run the poller
+    try:
+        asyncio.run(process_messages())
+    except KeyboardInterrupt:
+        print("Stopped.")
