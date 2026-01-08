@@ -9,6 +9,21 @@ let config = {
 // --- Initialization ---
 
 function init() {
+    console.log("Reddit Saved Extension: Content script loaded");
+
+    // Check initially
+    attemptInjection();
+
+    // Check periodically for SPA navigation (Reddit is an SPA)
+    setInterval(attemptInjection, 2000);
+}
+
+function attemptInjection() {
+    if (document.getElementById('rst-panel')) return; // Already injected
+
+    // Optional: Check URL to be sure we are on a saved page (if manifest is too broad)
+    if (!window.location.href.includes('/saved')) return;
+
     createPanel();
     loadConfig();
 }
@@ -214,4 +229,8 @@ function updateStatus(msg) {
 }
 
 // Run
-init();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}

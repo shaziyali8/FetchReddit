@@ -15,7 +15,11 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.reddit.com/user/*/saved*", "*://*.reddit.com/saved*"],
+      "matches": [
+        "*://*.reddit.com/user/*/saved*",
+        "*://*.reddit.com/saved*",
+        "*://*.reddit.com/u/*/saved*"
+      ],
       "js": ["content.js"],
       "css": ["styles.css"]
     }
