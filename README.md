@@ -46,17 +46,17 @@ This is a Chrome Extension that runs on your Reddit "Saved" page. It extracts po
 
 ---
 
-# Part 2: Media Downloader Bot (Python)
+# Part 2: Media Downloader Bot (Node.js)
 
-To automatically download the videos/images from the links sent by the extension, run this Python script.
+To automatically download the videos/images from the links sent by the extension, run this Node.js script.
 
 ## Setup
 
 1.  **Install Dependencies**:
     ```bash
-    pip install -r requirements.txt
+    npm install
     ```
-    *Note: You also need `ffmpeg` installed on your system for `yt-dlp`.*
+    *Note: You also need `ffmpeg` installed on your system for `yt-dlp` to merge video/audio streams.*
 
 2.  **Configuration**:
     - Copy `.env.example` to `.env`:
@@ -70,6 +70,6 @@ To automatically download the videos/images from the links sent by the extension
 
 3.  **Run**:
     ```bash
-    python media_bot.py
+    node media_bot.js
     ```
-    The bot will poll the channel every 15 seconds. When it sees a message from the Extension ("New Saved Posts:"), it will download the media and upload it to the channel, then mark the text message as "✅ Processed".
+    The bot will poll the channel every 15 seconds. When it sees a message from the Extension ("New Saved Posts:"), it will download the media (using `yt-dlp`) and upload it to the channel, then mark the text message as "✅ Processed".
