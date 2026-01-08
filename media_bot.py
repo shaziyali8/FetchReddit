@@ -27,12 +27,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Initialize Pyrogram Client
-# Using a session file named 'media_bot_session'
+# Using in-memory session to ensure it acts as a Bot and not a User
 app = Client(
     "media_bot_session",
     api_id=API_ID,
     api_hash=API_HASH,
-    bot_token=BOT_TOKEN
+    bot_token=BOT_TOKEN,
+    in_memory=True
 )
 
 def get_channel_id(channel_id_str):
