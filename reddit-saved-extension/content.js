@@ -36,7 +36,7 @@ function createPanel() {
 
         <div id="rst-main-view">
             <button id="rst-fetch-btn" class="rst-btn">Fetch URLs</button>
-            <button id="rst-send-btn" class="rst-btn" disabled>Send to Telegram</button>
+            <button id="rst-send-btn" class="rst-btn" disabled>Send to Telegram Group</button>
             <div id="rst-status">Ready. Scroll to load posts first.</div>
             <button id="rst-settings-btn" class="rst-btn rst-secondary" style="margin-top: 10px;">Settings</button>
         </div>
@@ -200,8 +200,8 @@ async function sendToTelegram() {
                     data: {
                         botToken: config.botToken,
                         chatId: config.chatId,
-                        message: message,
-                        parseMode: 'Markdown'
+                        message: message
+                        // No parseMode: send as plain text
                     }
                 }, (response) => {
                     if (chrome.runtime.lastError) {
@@ -221,8 +221,8 @@ async function sendToTelegram() {
                         data: {
                             botToken: config.botToken,
                             chatId: config.chatId,
-                            message: 'Welcome! Send /fetch to get your saved Reddit post links.',
-                            parseMode: 'Markdown'
+                            message: 'Welcome! Send /fetch to get your saved Reddit post links.'
+                            // No parseMode: send as plain text
                         }
                     }, (response) => {
                         sendResponse({ status: response && response.success ? 'started' : 'error' });
