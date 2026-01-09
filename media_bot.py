@@ -2,8 +2,6 @@ import os
 import re
 import asyncio
 import logging
-import shutil
-import time
 from dotenv import load_dotenv
 from pyrogram import Client, enums
 import yt_dlp
@@ -105,7 +103,9 @@ async def process_messages():
                         logger.info(f"Processing message {message.id}...")
 
                         # Extract URLs
-                        url_regex = r"(https?://(?:www\.)?(?:reddit\.com|redd\.it)/[^\s]+)"
+                        # Regex modified to handle Markdown links [Title](URL) or plain URL
+                        # Captures URL inside () or standalone
+                        url_regex = r"https?://(?:www\.)?(?:reddit\.com|redd\.it)/[^\s\)]+"
                         urls = re.findall(url_regex, message.text)
 
                         if not urls:
@@ -148,6 +148,7 @@ async def process_messages():
                         # We append to the message.
                         new_text = message.text + "\n\n✅ Processed & Downloaded"
                         try:
+                            # Keep the formatting of the original message (Markdown)
                             await app.edit_message_text(channel_target, message.id, new_text, disable_web_page_preview=True)
                             logger.info("Message marked as processed.")
                         except Exception as err:

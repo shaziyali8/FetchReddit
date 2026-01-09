@@ -43,7 +43,7 @@ function createPanel() {
 
         <div id="rst-settings-view" class="hidden">
             <input type="text" id="rst-bot-token" class="rst-input" placeholder="Bot Token">
-            <input type="text" id="rst-chat-id" class="rst-input" placeholder="Chat ID">
+            <input type="text" id="rst-chat-id" class="rst-input" placeholder="Chat/Group ID">
             <button id="rst-save-btn" class="rst-btn">Save</button>
             <button id="rst-cancel-btn" class="rst-btn rst-secondary">Back</button>
         </div>
@@ -122,9 +122,34 @@ function fetchUrls() {
         const match = href.match(/\/comments\/([a-zA-Z0-9]+)\//);
         if (match) {
             const id = match[1];
-            // Store the shortest/cleanest URL found for this ID
+            const cleanUrl = href.split('?')[0];
+
+            // Try to extract a title if available
+            let title = "";
+            try {
+               if (link.innerText && link.innerText.trim().length > 5) {
+                   title = link.innerText.trim();
+               }
+            } catch(e) {}
+
+            // Update logic:
+            // 1. If we haven't seen this ID, add it.
+            // 2. If we HAVE seen it, but the existing entry has no title and we found one, update it.
+
+            // Escape special Markdown chars in title: [ ] _ * `
+            if (title) {
+                title = title.replace(/([\[\]_*`])/g, '\\$1');
+            }
+
             if (!uniquePosts.has(id)) {
-                uniquePosts.set(id, href.split('?')[0]); // Remove query params
+                const entry = title ? `[${title}](${cleanUrl})` : cleanUrl;
+                uniquePosts.set(id, { entry: entry, hasTitle: !!title });
+            } else {
+                const existing = uniquePosts.get(id);
+                if (!existing.hasTitle && title) {
+                    const entry = `[${title}](${cleanUrl})`;
+                    uniquePosts.set(id, { entry: entry, hasTitle: true });
+                }
             }
         }
     });
@@ -140,9 +165,9 @@ function fetchUrls() {
         newUrls = [];
         newIds = [];
 
-        for (const [id, url] of uniquePosts) {
+        for (const [id, val] of uniquePosts) {
             if (!sentIds.has(id)) {
-                newUrls.push(url);
+                newUrls.push(val.entry);
                 newIds.push(id);
             }
         }
@@ -186,7 +211,8 @@ async function sendToTelegram() {
                     data: {
                         botToken: config.botToken,
                         chatId: config.chatId,
-                        message: message
+                        message: message,
+                        parseMode: 'Markdown'
                     }
                 }, (response) => {
                     if (chrome.runtime.lastError) {

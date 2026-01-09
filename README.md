@@ -1,11 +1,12 @@
 # Reddit Saved Posts to Telegram Extension
 
-This is a Chrome Extension that runs on your Reddit "Saved" page. It extracts post URLs and sends them to your Telegram bot.
+This is a Chrome Extension that runs on your Reddit "Saved" page. It extracts post URLs and sends them to your Telegram bot, which can then forward them to a Channel or Group.
 
 ## Features
 - **In-Page Panel**: No need to click the extension icon. A small panel appears on the bottom right of Reddit pages.
 - **Duplicate Prevention**: Remembers which posts (IDs) have already been sent to avoid spam.
 - **Batch Sending**: Sends multiple URLs in a single message to respect rate limits.
+- **Markdown Support**: Tries to grab the post title and sends it as a clickable link.
 - **Privacy**: Runs entirely in your browser. Tokens are stored in your browser's local storage.
 
 ## Installation
@@ -24,13 +25,15 @@ This is a Chrome Extension that runs on your Reddit "Saved" page. It extracts po
 
 1.  **Get Telegram Credentials**:
     - **Bot Token**: Chat with [@BotFather](https://t.me/BotFather) on Telegram to create a new bot and get the HTTP API Token.
-    - **Chat ID**: Chat with [@userinfobot](https://t.me/userinfobot) to get your numeric User ID.
+    - **Chat/Group ID**:
+        - For a **Channel**: Create a channel, add your bot as an admin. The ID is usually `@channelname` or a number like `-100...`.
+        - For a **Group**: Add the bot to the group. Use a bot like [@userinfobot](https://t.me/userinfobot) or check web.telegram.org URL to find the Group ID (usually starts with `-` or `-100`).
 
 2.  **Configure the Extension**:
     - Go to your Reddit Saved page: [https://www.reddit.com/user/YOUR_USERNAME/saved/](https://www.reddit.com/user/me/saved/).
     - You should see a panel in the bottom right corner.
     - Click **Settings**.
-    - Enter your **Bot Token** and **Chat ID**.
+    - Enter your **Bot Token** and **Chat/Group ID**.
     - Click **Save**.
 
 ## Usage
@@ -43,33 +46,3 @@ This is a Chrome Extension that runs on your Reddit "Saved" page. It extracts po
 ## Notes
 - Works on both Old Reddit and New Reddit (as long as the URL structure contains `/comments/id/`).
 - If you clear your browser extension data, the "already sent" history will be lost.
-
----
-
-# Part 2: Media Downloader Bot (Python)
-
-To automatically download the videos/images from the links sent by the extension, run this Python script.
-
-## Setup
-
-1.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-    *Note: You also need `ffmpeg` installed on your system for `yt-dlp` to merge video/audio streams.*
-
-2.  **Configuration**:
-    - Copy `.env.example` to `.env`:
-      ```bash
-      cp .env.example .env
-      ```
-    - Fill in:
-      - `API_ID`, `API_HASH` (from my.telegram.org)
-      - `BOT_TOKEN` (Same as used in Extension)
-      - `TELEGRAM_CHANNEL_ID` (Same as used in Extension)
-
-3.  **Run**:
-    ```bash
-    python media_bot.py
-    ```
-    The bot will poll the channel every 15 seconds. When it sees a message from the Extension ("New Saved Posts:"), it will download the media (using `yt-dlp`) and upload it to the channel, then mark the text message as "✅ Processed".
