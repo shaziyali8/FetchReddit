@@ -136,20 +136,9 @@ function fetchUrls() {
             // 1. If we haven't seen this ID, add it.
             // 2. If we HAVE seen it, but the existing entry has no title and we found one, update it.
 
-            // Escape special Markdown chars in title: [ ] _ * `
-            if (title) {
-                title = title.replace(/([\[\]_*`])/g, '\\$1');
-            }
-
+            // Only use direct URLs, ignore titles
             if (!uniquePosts.has(id)) {
-                const entry = title ? `[${title}](${cleanUrl})` : cleanUrl;
-                uniquePosts.set(id, { entry: entry, hasTitle: !!title });
-            } else {
-                const existing = uniquePosts.get(id);
-                if (!existing.hasTitle && title) {
-                    const entry = `[${title}](${cleanUrl})`;
-                    uniquePosts.set(id, { entry: entry, hasTitle: true });
-                }
+                uniquePosts.set(id, { entry: cleanUrl });
             }
         }
     });
@@ -201,7 +190,7 @@ async function sendToTelegram() {
     let success = true;
 
     for (const chunk of chunks) {
-        const message = "New Saved Posts:\n\n" + chunk.join('\n');
+        const message = chunk.join('\n');
 
         try {
             // Send message to background script to bypass CSP
@@ -223,6 +212,24 @@ async function sendToTelegram() {
                         reject(new Error(response ? response.error : 'Unknown Error'));
                     }
                 });
+            // --- Bot Command Handler ---
+            chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+                if (request.action === 'startBot') {
+                    // Handle /start command for bot
+                    chrome.runtime.sendMessage({
+                        action: 'sendToTelegram',
+                        data: {
+                            botToken: config.botToken,
+                            chatId: config.chatId,
+                            message: 'Welcome! Send /fetch to get your saved Reddit post links.',
+                            parseMode: 'Markdown'
+                        }
+                    }, (response) => {
+                        sendResponse({ status: response && response.success ? 'started' : 'error' });
+                    });
+                    return true; // Indicates async response
+                }
+            });
             });
 
         } catch (err) {
